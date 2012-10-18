@@ -82,12 +82,14 @@ public class RedisRiver extends AbstractRiverComponent implements River {
 			redisKey  = XContentMapValues.nodeStringValue(redisSettings.get("key"), "redis_river");
 			redisMode = XContentMapValues.nodeStringValue(redisSettings.get("mode"), "list");
 			redisDB   = XContentMapValues.nodeIntegerValue(redisSettings.get("database"), 0);
+			pollDelay = XContentMapValues.nodeIntegerValue(redisSettings.get("pollDelay"), 0);
 		} else {
 			redisHost = "localhost";
 			redisPort = 6379;
 			redisKey  = "redis_river";
 			redisMode = "list";
 			redisDB   = 0;
+			pollDelay = 5;
 		}
 		
 		if(settings.settings().containsKey("index")){
@@ -99,7 +101,7 @@ public class RedisRiver extends AbstractRiverComponent implements River {
 			bulkTimeout = 5;   
 		}
 
-		if(logger.isInfoEnabled()) logger.info("Configured Redis connection {}:{}/{} DB={} bulkSize={} bulkTimeout={}", redisHost, redisPort, redisKey, redisDB, bulkSize, bulkTimeout);
+		if(logger.isInfoEnabled()) logger.info("Configured Redis connection {}:{}/{} DB={} bulkSize={} bulkTimeout={} pollDelay={}", redisHost, redisPort, redisKey, redisDB, bulkSize, bulkTimeout, pollDelay);
 	}
 
 
@@ -178,7 +180,7 @@ public class RedisRiver extends AbstractRiverComponent implements River {
 			   things.
 			*/
 
-			watchFuture = watchScheduler.scheduleWithFixedDelay((Runnable)new BulkWatcher(), 5, 5, TimeUnit.SECONDS);
+			watchFuture = watchScheduler.scheduleWithFixedDelay((Runnable)new BulkWatcher(), pollDelay, pollDelay, TimeUnit.SECONDS);
 		}
 
 

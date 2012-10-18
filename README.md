@@ -51,6 +51,7 @@ Create your river using the standard river PUT request. Your options are:
  - database:     (OPTIONAL) The Redis database number to use. Zero indexed, make sure you've properly setup your redis.conf if using more than 16 DBs.
  - bulk_size:    the maximum number of items to queue up before indexing.
  - bulk_timeout: the time (in seconds) to wait for more items before indexing.
+ - pollDelay:	 how long to wait between polls
 
 
 
