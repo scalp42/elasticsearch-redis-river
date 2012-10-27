@@ -10,9 +10,9 @@
     <packaging>jar</packaging>
 
     <properties>
-        <elasticsearch.version>0.19.1</elasticsearch.version>
+        <elasticsearch.version>0.19.9</elasticsearch.version>
     </properties>
-    
+
     <repositories>
         <repository>
             <id>oss.sonatype.org</id>
@@ -44,7 +44,7 @@
             <version>2.0.0</version>
             <type>jar</type>
             <scope>compile</scope>
-        </dependency>  		
+        </dependency>
         <dependency>
             <groupId>org.elasticsearch</groupId>
             <artifactId>elasticsearch</artifactId>
