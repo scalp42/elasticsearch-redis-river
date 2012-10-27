@@ -1,5 +1,9 @@
 package org.elasticsearch.river.redis;
 
+import java.net.URI;
+import org.apache.commons.pool.impl.GenericObjectPool;
+import org.apache.commons.pool.impl.GenericObjectPool.Config;
+
 /*
 	Elastic Search plugin imports.
 */
@@ -110,11 +114,20 @@ public class RedisRiver extends AbstractRiverComponent implements River {
 		// Next, we'll try to connect our redis pool
 		try {
 			// Support for authentication ( https://github.com/xetorthio/jedis/blob/master/src/main/java/redis/clients/jedis/JedisPool.java#L21 )
-			this.jedisPool = new JedisPool(this.redisHost) //, this.redisPort);
+
+			URI uri = URI.create(this.redisHost);
+			if (uri.getScheme() != null && uri.getScheme().equals("redis")) {
+				logger.info("Started with redis host url..");
+				this.jedisPool = new JedisPool(this.redisHost);
+			} else {
+				this.jedisPool = new JedisPool(this.redisHost, this.redisPort);
+			}
+
 		} catch (Exception e) {
 			// We can't connect to redis for some reason, so
 			// let's not even try to finish this.
 			logger.error("Unable to allocate redis pool. Disabling River.");
+			logger.error(e.getMessage(), e);
 			return;
 		}
 

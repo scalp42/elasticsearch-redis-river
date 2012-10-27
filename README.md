@@ -7,15 +7,15 @@ PubSub. Sorry for the delay, but it shouldn't be much longer now.
 
 # Elastic Search Redis River
 
-This is a simple River that utilizes the same [Bulk API](http://www.elasticsearch.org/guide/reference/api/bulk.html) used 
+This is a simple River that utilizes the same [Bulk API](http://www.elasticsearch.org/guide/reference/api/bulk.html) used
 in Elastic Search REST requests and the RabbitMQ River, but
 with Redis.
 
 You can get stuff into ES two ways with this river:
  - Push to a Redis List
  - Use Redis PubSub (Soon, but not yet!)
- 
- 
+
+
 ## INSTALLATION
 
 From ES_HOME:
@@ -30,7 +30,7 @@ Older versions are still available on the Downloads page if you need them.
 	  	curl -XPUT 'localhost:9200/_river/my_redis_river/_meta' -d '{
 		    "type" : "redis",
 		    "redis" : {
-		        "host"     : "localhost", 
+		        "host"     : "localhost",
 		        "port"     : 6379,
 		        "key"      : "redis_key_or_channel",
 		        "mode"     : "list_or_pubsub",
