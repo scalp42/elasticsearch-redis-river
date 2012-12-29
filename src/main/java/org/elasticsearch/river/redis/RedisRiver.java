@@ -1,5 +1,9 @@
 package org.elasticsearch.river.redis;
 
+import java.net.URI;
+import org.apache.commons.pool.impl.GenericObjectPool;
+import org.apache.commons.pool.impl.GenericObjectPool.Config;
+
 /*
 	Elastic Search plugin imports.
 */
@@ -43,19 +47,19 @@ import redis.clients.jedis.JedisPubSub;
 /**
  * @author leeadkins
  */
- 
+
 public class RedisRiver extends AbstractRiverComponent implements River {
-	
+
 	private final Client client;
-	
+
 	private volatile Thread thread;
-	
+
 	private volatile boolean closed = false;
-	
+
 	private volatile BulkRequestBuilder currentRequest;
 
 	private volatile JedisPool jedisPool;
-	
+
 	/* Redis Related things */
 	private final String  redisHost;
 	private final int     redisPort;
@@ -68,13 +72,13 @@ public class RedisRiver extends AbstractRiverComponent implements River {
 	private final int bulkTimeout;
 
 
-	
+
 	@Inject
 	public RedisRiver(RiverName riverName, RiverSettings settings, Client client) {
 		super(riverName, settings);
 		this.client = client;
 
-		/* Build up the settings */  
+		/* Build up the settings */
 		if(settings.settings().containsKey("redis")) {
 			Map<String, Object> redisSettings = (Map<String, Object>) settings.settings().get("redis");
 			redisHost = XContentMapValues.nodeStringValue(redisSettings.get("host"), "localhost");
@@ -91,14 +95,14 @@ public class RedisRiver extends AbstractRiverComponent implements River {
 			redisDB   = 0;
 			pollDelay = 5;
 		}
-		
+
 		if(settings.settings().containsKey("index")){
 			Map<String, Object> indexSettings = (Map<String, Object>) settings.settings().get("index");
 			bulkSize    = XContentMapValues.nodeIntegerValue(indexSettings.get("bulk_size"), 100);
 			bulkTimeout = XContentMapValues.nodeIntegerValue(indexSettings.get("bulk_timeout"), 5);
 		} else {
 			bulkSize = 100;
-			bulkTimeout = 5;   
+			bulkTimeout = 5;
 		}
 
 		if(logger.isInfoEnabled()) logger.info("Configured Redis connection {}:{}/{} DB={} bulkSize={} bulkTimeout={} pollDelay={}", redisHost, redisPort, redisKey, redisDB, bulkSize, bulkTimeout, pollDelay);
@@ -111,16 +115,26 @@ public class RedisRiver extends AbstractRiverComponent implements River {
 
 		// Next, we'll try to connect our redis pool
 		try {
-			this.jedisPool = new JedisPool(this.redisHost, this.redisPort);  
+			// Support for authentication ( https://github.com/xetorthio/jedis/blob/master/src/main/java/redis/clients/jedis/JedisPool.java#L21 )
+
+			URI uri = URI.create(this.redisHost);
+			if (uri.getScheme() != null && uri.getScheme().equals("redis")) {
+				logger.info("Started with redis host url..");
+				this.jedisPool = new JedisPool(this.redisHost);
+			} else {
+				this.jedisPool = new JedisPool(this.redisHost, this.redisPort);
+			}
+
 		} catch (Exception e) {
 			// We can't connect to redis for some reason, so
 			// let's not even try to finish this.
 			logger.error("Unable to allocate redis pool. Disabling River.");
+			logger.error(e.getMessage(), e);
 			return;
 		}
 
 		currentRequest = client.prepareBulk();
-		
+
 		if(redisMode.equalsIgnoreCase("list")){
 			thread = EsExecutors.daemonThreadFactory(settings.globalSettings(), "redis_listener").newThread(new RedisListRunner());
 		} else if (redisMode.equalsIgnoreCase("pubsub")){
@@ -131,10 +145,10 @@ public class RedisRiver extends AbstractRiverComponent implements River {
 			logger.error("Invalid redis river mode specified. Please check your river settings and try again.");
 			return;
 		}
-			
+
 		thread.start();
 	}
-	
+
 	@Override
 	public void close() {
 		if(logger.isInfoEnabled()) logger.info("Closing down redis river");
@@ -175,7 +189,7 @@ public class RedisRiver extends AbstractRiverComponent implements River {
 			this.jedis.subscribe(new RiverListener(), redisKey);
 
 
-			/* Setup a watcher task to flush the queue 
+			/* Setup a watcher task to flush the queue
 			   if we're waiting for too long for more
 			   things.
 			*/
@@ -193,7 +207,7 @@ public class RedisRiver extends AbstractRiverComponent implements River {
 			if(actionCount != 0 && (actionCount > bulkSize || force == true)){
 				try{
 					// This is a little slower than passing in an ActionListener
-					// to execute(). However, it doesn't spawn thousands of 
+					// to execute(). However, it doesn't spawn thousands of
 					// zombie threads that hang out after it's done either.
 					BulkResponse response = currentRequest.execute().actionGet();
 					if(response.hasFailures()){
@@ -214,7 +228,7 @@ public class RedisRiver extends AbstractRiverComponent implements River {
 				processBulkIfNeeded(true);
 			}
 		}
-		
+
 		private class RiverListener extends JedisPubSub {
 
 			private void queueMessage(String message){
@@ -263,7 +277,7 @@ public class RedisRiver extends AbstractRiverComponent implements River {
 				loop();
 			}
 		}
-		
+
 		private void loop() {
 			List<String> response;
 			try {
@@ -282,11 +296,11 @@ public class RedisRiver extends AbstractRiverComponent implements River {
 					Thread.sleep(5000);
 				} catch(InterruptedException e1) {
 					// Don't worry about this here. It'll close itself if it's in the
-					// process of closing. 
-				}  
+					// process of closing.
+				}
 				return;
 			}
-			
+
 			if(response != null){
 				try {
 					if(logger.isDebugEnabled()) logger.debug("Popped from queue: {}", response);
@@ -295,15 +309,15 @@ public class RedisRiver extends AbstractRiverComponent implements River {
 					processBulkIfNeeded(false);
 				} catch (Exception e){
 					logger.error("Unable to build request");
-				} 
+				}
 			} else {
 				if(logger.isDebugEnabled()) logger.debug("Nothing popped. Timed out.");
 				processBulkIfNeeded(true);
 			}
 			jedisPool.returnResource(this.jedis);
 		}
-		
-		
+
+
 		private void processBulkIfNeeded(Boolean force) {
 			int actionCount = currentRequest.numberOfActions();
 			if(actionCount != 0 && (actionCount > bulkSize || force == true)){

@@ -12,15 +12,15 @@ import org.elasticsearch.river.redis.RedisRiverModule;
 public class RedisRiverPlugin extends AbstractPlugin {
 	@Inject public RedisRiverPlugin(){
 	}
-	
+
 	@Override public String name(){
 		return "river-redis";
 	}
-	
+
 	@Override public String description(){
 		return "Redis River Plugin";
 	}
-	
+
 	public void onModule(RiversModule module){
 		module.registerRiver("redis", RedisRiverModule.class);
 	}
